@@ -138,7 +138,7 @@ const AudioPage = () => {
       </Box>
       <Flex flexDirection="column" h="15vh" p="6" bg="gray.900" justify="space-between">
         <Text color="gray.400">Viimeisin tunnistettu:</Text>
-        <Heading size="3xl">{value?.data()?.ttsLine || '...'}</Heading>
+        <Heading size="3xl" color="white" >{value?.data()?.ttsLine || '...'}</Heading>
       </Flex>
     </Flex>
   )
