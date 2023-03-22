@@ -68,6 +68,8 @@ const AudioPage = () => {
     analyser.current.getByteFrequencyData(dataArray)
 
     ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.fillStyle = 'rgb(0, 0, 0)'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
     const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height)
     gradient.addColorStop(0.2, '#ec4747')
     gradient.addColorStop(0.5, 'rgb(0, 205, 253)')
