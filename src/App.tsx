@@ -2,7 +2,7 @@ import { Box, Button, Center, Text } from '@chakra-ui/react'
 import * as cocoSsd from '@tensorflow-models/coco-ssd'
 import '@tensorflow/tfjs-backend-cpu'
 import '@tensorflow/tfjs-backend-webgl'
-import { useEffect, useRef, useState } from 'react'
+import { DetailedHTMLProps, HTMLAttributes, useEffect, useRef, useState } from 'react'
 
 import { doc } from 'firebase/firestore'
 import { useDocument } from 'react-firebase-hooks/firestore'
@@ -12,16 +12,23 @@ import { Data } from './types/data'
 
 const isUserMediaSupported = () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)
 
-const predictionBBOXToPercentage = (prediction: cocoSsd.DetectedObject, video: HTMLVideoElement) => {
+const minusOneOrOne = () => (Math.random() > 0.5 ? 1 : -1)
+const addFakeError = (calibrated: boolean) => (calibrated ? 0 : Math.floor(Math.random() * 30) * minusOneOrOne())
+
+const predictionBBOXToPercentage = (
+  prediction: cocoSsd.DetectedObject,
+  video: HTMLVideoElement,
+  calibrated: boolean
+) => {
   const sourceSize = { width: video.videoWidth, height: video.videoHeight }
   const { width, height } = video.getBoundingClientRect()
   const [x, y, w, h] = prediction.bbox
 
   return {
-    left: (x / sourceSize.width) * width,
-    top: (y / sourceSize.height) * height,
-    width: (w / sourceSize.width) * width,
-    height: (h / sourceSize.height) * height,
+    left: (x / sourceSize.width) * width + addFakeError(calibrated),
+    top: (y / sourceSize.height) * height + addFakeError(calibrated),
+    width: (w / sourceSize.width) * width + addFakeError(calibrated),
+    height: (h / sourceSize.height) * height + addFakeError(calibrated),
   }
 }
 
@@ -88,6 +95,18 @@ export const App = () => {
   }, [value])
 
   const borderColor = value?.data()?.color ?? 'red'
+  const calibrated = value?.data()?.calibrated ?? true
+
+  const baseOverlayStyle = {
+    position: 'absolute',
+    top: '0',
+    left: '0',
+    width: '100%',
+    height: '100%',
+    zIndex: 2,
+    transition: '0.2s all ease-in-out',
+    background: 'rgba(0, 0, 0, 0)',
+  } as DetailedHTMLProps<HTMLAttributes<HTMLDivElement>, HTMLDivElement>['style']
 
   if (value?.data()?.audioMode == true) {
     return <Navigate to="/audio" />
@@ -115,14 +134,25 @@ export const App = () => {
             key={index}
             style={{
               position: 'absolute',
-              ...predictionBBOXToPercentage(prediction, videoTag.current!),
-              background: 'rgba(0, 255, 0, 0.048)',
-              border: '2px dashed #6bcffd',
+              ...predictionBBOXToPercentage(prediction, videoTag.current!, calibrated),
+              background: calibrated ? 'rgba(0, 255, 0, 0.048)' : 'rgba(255, 0, 0, 0.048)',
+              border: calibrated ? '2px dashed #6bcffd' : '2px dashed #ff0000',
+              filter: calibrated ? 'blur(0px)' : 'blur(5px)',
               borderRadius: '4px',
               zIndex: 1,
             }}
           />
         ))}
+        <div
+          style={
+            borderColor === 'green'
+              ? {
+                  ...baseOverlayStyle,
+                  background: 'rgba(0, 255, 0, 0.432)',
+                }
+              : baseOverlayStyle
+          }
+        />
       </Box>
       {!cameraEnabled && (
         <Center pos="absolute" top="8" w="full">

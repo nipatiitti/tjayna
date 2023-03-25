@@ -1,20 +1,45 @@
 import { Box, Flex, Heading, Text } from '@chakra-ui/react'
 import { doc } from 'firebase/firestore'
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useDocument } from 'react-firebase-hooks/firestore'
 import { Navigate } from 'react-router-dom'
+import { Loading } from './components/Loading'
 import { firestore } from './firebase/init'
+import { Data } from './types/data'
 
 const AudioPage = () => {
   const dataRef = doc(firestore, 'status/data')
   const [value] = useDocument(dataRef)
+
+  const [previousTts, setPreviousTts] = useState<string>('')
+  const [ttsTarget, setTTSTarget] = useState<string>('')
+  const [currentTts, setCurrentTts] = useState<string>('')
+
+  const ttsTargetRef = useRef<string>(ttsTarget)
+  ttsTargetRef.current = ttsTarget
+
+  const currentTtsRef = useRef<string>(currentTts)
+  currentTtsRef.current = currentTts
 
   const canvasContainer = useRef<HTMLDivElement>(null)
   const canvasElement = useRef<HTMLCanvasElement>(null)
   const drawLoop = useRef<number | undefined>(undefined)
   const audioContext = useRef<AudioContext | undefined>(undefined)
   const analyser = useRef<AnalyserNode | undefined>(undefined)
-  const previousData = useRef<number[]>([])
+  const ttsChangeDelta = useRef<number>(0)
+  const lastTime = useRef<number>(0)
+  const randomDelay = useRef<number>(200) // ms between 200 and 500
+
+  useEffect(() => {
+    if (!value || !value.data()) return
+    const data = value.data() as Data
+
+    if (data.ttsLine !== previousTts) {
+      console.log('TTS changed')
+      setPreviousTts(data.ttsLine)
+      setTTSTarget(data.ttsLine)
+    }
+  }, [value?.data(), previousTts, currentTts])
 
   // Initial render
   useEffect(() => {
@@ -47,9 +72,34 @@ const AudioPage = () => {
     }
   }, [])
 
-  const draw = () => {
+  const draw = (now: DOMHighResTimeStamp) => {
     const canvas = canvasElement.current
     const ctx = canvas?.getContext('2d')
+
+    if (!lastTime.current) {
+      lastTime.current = now
+    }
+
+    ttsChangeDelta.current += now - lastTime.current
+    lastTime.current = now
+
+    if (currentTtsRef.current !== ttsTargetRef.current && ttsChangeDelta.current > randomDelay.current) {
+      ttsChangeDelta.current = 0
+      randomDelay.current = Math.floor(Math.random() * 300) + 200
+      if (ttsTargetRef.current === '') {
+        setCurrentTts('')
+      } else if (ttsTargetRef.current !== '' && currentTtsRef.current === '') {
+        // Start over
+        setCurrentTts(ttsTargetRef.current.split(' ')[0] + ' ')
+      } else if (ttsTargetRef.current.startsWith(currentTtsRef.current)) {
+        // Fetch the next word
+        const nextWord = ttsTargetRef.current.split(currentTtsRef.current)[1].split(' ')[0]
+        setCurrentTts(currentTtsRef.current + nextWord + ' ')
+      } else if (ttsTargetRef.current.trim() !== currentTtsRef.current.trim()) {
+        // Target has changed, reset and start over
+        setCurrentTts(ttsTargetRef.current.split(' ')[0] + ' ')
+      }
+    }
 
     if (!analyser.current || !ctx || !canvas) {
       drawLoop.current = requestAnimationFrame(draw)
@@ -123,7 +173,7 @@ const AudioPage = () => {
 
   return (
     <Flex direction="column" w="100vw">
-      <Box w="100vw" h="85vh" ref={canvasContainer}>
+      <Box w="100vw" h="80vh" ref={canvasContainer}>
         <canvas
           id="canvas-element"
           ref={canvasElement}
@@ -136,9 +186,11 @@ const AudioPage = () => {
           }}
         />
       </Box>
-      <Flex flexDirection="column" h="15vh" p="6" bg="gray.900" justify="space-between">
+      <Flex flexDirection="column" h="20vh" p="6" bg="gray.900" justify="space-between">
         <Text color="gray.400">Viimeisin tunnistettu:</Text>
-        <Heading size="3xl" color="white" >{value?.data()?.ttsLine || '...'}</Heading>
+        <Heading size="3xl" color="white">
+          {currentTts || <Loading />}
+        </Heading>
       </Flex>
     </Flex>
   )

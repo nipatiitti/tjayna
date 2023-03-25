@@ -53,20 +53,36 @@ export const Admin = () => {
   return (
     <VStack spacing="8" p="4">
       <Heading>Teekkarijayna admin paneeli</Heading>
-      <HStack w="full" p="8" border="1px" borderRadius="md" borderColor="blue.400" spacing="8" wrap="wrap">
-        <Flex direction="column">
-          <Button colorScheme="green" onClick={toggleColor}>
-            Oikea liike!
-          </Button>
+      <VStack w="full" p="8" border="1px" borderRadius="md" borderColor="blue.400" spacing="8">
+        <HStack w="full" wrap="wrap">
+          <Flex direction="column">
+            <Button colorScheme="green" onClick={toggleColor}>
+              Oikea liike!
+            </Button>
+            <Text>
+              Tämän hetkinen väri: <span style={{ color: data?.data()?.color ?? 'red' }}>{data?.data()?.color}</span>
+            </Text>
+          </Flex>
           <Text>
-            Tämän hetkinen väri: <span style={{ color: data?.data()?.color ?? 'red' }}>{data?.data()?.color}</span>
+            Tästä napista painamalla <br />
+            Välähtää kamera vihreänä <br />
           </Text>
-        </Flex>
-        <Text>
-          Tästä napista painamalla <br />
-          Välähtää kamera vihreänä <br />
-        </Text>
-      </HStack>
+        </HStack>
+        <FormControl display="flex" alignItems="center">
+          <FormLabel htmlFor="audio-mode" mb="0">
+            Kalibroitu:
+          </FormLabel>
+          <Switch
+            id="calibrated"
+            isChecked={data?.data()?.calibrated || false}
+            onChange={(e) =>
+              updateDoc(dataRef, {
+                calibrated: e.target.checked,
+              })
+            }
+          />
+        </FormControl>
+      </VStack>
       <VStack w="full" p="8" border="1px" borderRadius="md" borderColor="green.400" spacing="8" wrap="wrap">
         <FormControl display="flex" alignItems="center">
           <FormLabel htmlFor="audio-mode" mb="0">
